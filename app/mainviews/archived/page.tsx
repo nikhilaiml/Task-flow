@@ -58,7 +58,7 @@ export default function ArchivedPage() {
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
                 if (window.confirm(`"${ws.title}" are you sure you want to delete permanent?`)) {
-                  await permanentlyDeleteWorkspace(ws.id, ws.title); await load();
+                  await permanentlyDeleteWorkspace(ws.id); await load();
                 }
               }}>
                 <Trash2 className="h-4 w-4 text-red-500" />
