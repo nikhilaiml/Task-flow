@@ -1,3 +1,8 @@
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { AppSidebar } from "@/components/app-sidebar"
+ 
+
 import { Geist, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
@@ -22,9 +27,70 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
     >
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
+     <body>
+  <ThemeProvider>
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <main>
+          <SidebarTrigger />
+          {children}
+        </main>
+      </SidebarProvider>
+    </TooltipProvider>
+  </ThemeProvider>
+</body>
     </html>
   )
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{/* <html lang="en" suppressHydrationWarning={true} className="...">
+  <body suppressHydrationWarning></body> */}
