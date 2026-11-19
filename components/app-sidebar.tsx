@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupLabel,
-  SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton
+  SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,9 +12,11 @@ import { Label } from "@/components/ui/label"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog"
-import { Plus, Gamepad2, Music, BookOpen, Dumbbell, Briefcase, Home, Folder, Trash2, CheckSquare } from "lucide-react"
-import { mainViews, workspaces, customIconMap } from "@/lib/navigation"
-import { getWorkspaces, addWorkspace, archiveWorkspace, getArchivedWorkspaces } from "@/lib/db"
+import { Plus, Gamepad2, Music, BookOpen, Dumbbell, Briefcase, Home, Folder, Trash2, CheckSquare, LogOut } from "lucide-react"
+// FIX: workspaces (static) hata diya - Ab default bhi DB se aayega, tabhi naya user ko fresh dikhega
+import { mainViews, customIconMap } from "@/lib/navigation"
+import { ensureDefaultWorkspaces, addWorkspace, archiveWorkspace, getArchivedWorkspaces } from "@/lib/db"
+import { supabase } from "@/lib/supabase"
 
 const iconOptions = [
   { name: "gamepad", Icon: Gamepad2, label: "Playing" },
@@ -29,23 +31,40 @@ const iconOptions = [
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  // FIX: Ab 2 list DB se - Default (Work, Personal...) aur Custom (Playing...)
+  const [defaultWorkspaces, setDefaultWorkspaces] = useState<any[]>([])
   const [customWorkspaces, setCustomWorkspaces] = useState<any[]>([])
   const [deletedIds, setDeletedIds] = useState<string[]>([])
   const [open, setOpen] = useState(false)
   const [newName, setNewName] = useState("")
   const [newDesc, setNewDesc] = useState("")
   const [selectedIcon, setSelectedIcon] = useState("gamepad")
-  // FIX 1 - Yaha add kiya - kis row pe hover hai ye track karega
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const load = async () => {
-    const all = await getWorkspaces()
+    // FIX: Naya user hai to pehle uske 5 fresh default workspaces banao
+    const all = await ensureDefaultWorkspaces()
+    setDefaultWorkspaces(all.filter((w: any) => !w.is_custom))
     setCustomWorkspaces(all.filter((w: any) => w.is_custom))
     const archived = await getArchivedWorkspaces()
     setDeletedIds(archived.map((w: any) => w.id))
   }
 
   useEffect(() => { load() }, [])
+
+  // FIX: User badle to sidebar bhi badle - Purane user ka data chipka na rahe
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        load()
+      } else {
+        setDefaultWorkspaces([])
+        setCustomWorkspaces([])
+        setDeletedIds([])
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -66,7 +85,6 @@ export function AppSidebar() {
     router.push(`/workspace/${id}`)
   }
 
-  // FIX 2 - Yaha return lagaya - pehle ulta chal raha tha
   const handleDeleteWorkspace = async (id: string, title: string, isCustom: boolean, iconName: string, desc: string) => {
     if (!window.confirm(`Do you want to archive "${title}"? It will move to Archived and you can restore it later.`)) return
     await archiveWorkspace({ id, title, desc, icon_name: iconName, is_custom: isCustom })
@@ -74,7 +92,17 @@ export function AppSidebar() {
     if (pathname === `/workspace/${id}`) router.push("/")
   }
 
-  const visibleWorkspaces = workspaces.filter((w) => !deletedIds.includes(w.id))
+  const handleLogout = async () => {
+    setDefaultWorkspaces([])
+    setCustomWorkspaces([])
+    setDeletedIds([])
+    await supabase.auth.signOut()
+    router.push("/auth/login")
+  }
+
+  // FIX: Dono list me se archived wale hatao
+  const visibleDefault = defaultWorkspaces.filter((w) => !deletedIds.includes(w.id))
+  const visibleCustom = customWorkspaces.filter((w) => !deletedIds.includes(w.id))
 
   return (
     <>
@@ -114,9 +142,9 @@ export function AppSidebar() {
             <SidebarGroupLabel>SELECT WORKSPACE</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {/* FIX 3 - Default Workspaces */}
-                {visibleWorkspaces.map((ws) => {
-                  const Icon = ws.icon
+                {/* Default Workspaces - Ab DB se, har user ke apne */}
+                {visibleDefault.map((ws) => {
+                  const Icon = customIconMap[ws.icon_name] || Folder
                   const href = `/workspace/${ws.id}`
                   return (
                     <SidebarMenuItem key={ws.id}>
@@ -130,7 +158,7 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                         {hoveredId === ws.id && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:bg-red-50"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteWorkspace(ws.id, ws.title, false, "folder", ws.desc || "") }}>
+                            onClick={(e) => { e.stopPropagation(); handleDeleteWorkspace(ws.id, ws.title, false, ws.icon_name, ws.desc || "") }}>
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         )}
@@ -138,8 +166,8 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   )
                 })}
-                {/* FIX 3 - Custom Workspaces */}
-                {customWorkspaces.map((ws) => {
+                {/* Custom Workspaces - Ab DB se, har user ke apne */}
+                {visibleCustom.map((ws) => {
                   const Icon = customIconMap[ws.icon_name] || Folder
                   const href = `/workspace/${ws.id}`
                   return (
@@ -172,6 +200,12 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+
+        <SidebarFooter className="p-2 border-t mt-auto shrink-0">
+          <Button variant="ghost" className="w-full justify-start gap-2 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" /> Logout
+          </Button>
+        </SidebarFooter>
       </Sidebar>
 
       <Dialog open={open} onOpenChange={setOpen}>
