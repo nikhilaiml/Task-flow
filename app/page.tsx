@@ -37,6 +37,7 @@ export default function HomePage() {
   const [newWorkspace, setNewWorkspace] = useState("Work")
   const [newDue, setNewDue] = useState("")
   const [newRepeat, setNewRepeat] = useState("none")
+  const [addError, setAddError] = useState<string | null>(null)
 
   const load = async () => {
     const data = await getTasks()
@@ -46,20 +47,29 @@ export default function HomePage() {
   useEffect(() => { load() }, [])
 
   const handleAdd = async () => {
+    setAddError(null)
     if (!newTitle.trim()) return
-    await addTask({
-      title: newTitle.trim(),
-      workspace: newWorkspace,
-      due: newDue || "",
-      completed: false,
-      starred: false,
-      recurring: newRepeat === "none" ? "" : newRepeat,
-    })
-    setNewTitle("")
-    setNewDue("")
-    setNewRepeat("none")
-    setOpen(false)
-    await load()
+    try {
+      const result = await addTask({
+        title: newTitle.trim(),
+        workspace: newWorkspace,
+        due: newDue || "",
+        completed: false,
+        starred: false,
+        recurring: newRepeat === "none" ? "" : newRepeat,
+      })
+      if (result.error) {
+        setAddError(result.error.message || "Task add nahi hua. Kripya dobara koshish karein.")
+        return
+      }
+      setNewTitle("")
+      setNewDue("")
+      setNewRepeat("none")
+      setOpen(false)
+      await load()
+    } catch (err: any) {
+      setAddError(err.message || "Kuch galat hua. Kripya dobara koshish karein.")
+    }
   }
 
   const toggleComplete = async (task: Task) => {
@@ -115,6 +125,11 @@ export default function HomePage() {
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader><DialogTitle>Add Task</DialogTitle></DialogHeader>
+          {addError && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+              {addError}
+            </div>
+          )}
             <div className="space-y-4 py-2">
               <div className="space-y-2"><Label>Title</Label><Input placeholder="Enter task title..." value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div>
               <div className="space-y-2">

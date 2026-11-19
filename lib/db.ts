@@ -28,20 +28,23 @@ export async function addTask(task: {
   starred?: boolean
   recurring?: string
 }) {
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert([{
-      title: task.title,
-      workspace: task.workspace,
-      due: task.due || "",
-      completed: task.completed || false,
-      starred: task.starred || false,
-      recurring: task.recurring || "",
-    }])
-    .select()
-    .single()
-  if (error) console.log("addTask error:", error.message)
-  return data
+  try {
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([{
+        title: task.title,
+        workspace: task.workspace,
+        due: task.due || "",
+        completed: task.completed || false,
+        starred: task.starred || false,
+        recurring: task.recurring || "",
+      }])
+      .select()
+      .single()
+    return { data, error }
+  } catch (err: any) {
+    return { data: null, error: { message: err.message || "Task add nahi hua" } }
+  }
 }
 
 // Task update karna - complete / star / edit

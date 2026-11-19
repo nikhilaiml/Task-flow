@@ -22,6 +22,7 @@ export default function DynamicWorkspacePage() {
   const [newTitle, setNewTitle] = useState("")
   const [newDue, setNewDue] = useState("")
   const [newRepeat, setNewRepeat] = useState("none")
+  const [addError, setAddError] = useState<string | null>(null)
 
   const load = async () => {
     const staticWs = workspaces.find((w) => w.id === id)
@@ -42,20 +43,29 @@ export default function DynamicWorkspacePage() {
   useEffect(() => { load() }, [id])
 
   const handleAdd = async () => {
+    setAddError(null)
     if (!newTitle.trim() || !title) return
-    await addTask({
-      title: newTitle.trim(),
-      workspace: title,
-      due: newDue || "",
-      completed: false,
-      starred: false,
-      recurring: newRepeat === "none" ? "" : newRepeat,
-    })
-    setNewTitle("")
-    setNewDue("")
-    setNewRepeat("none")
-    setOpen(false)
-    await load()
+    try {
+      const result = await addTask({
+        title: newTitle.trim(),
+        workspace: title,
+        due: newDue || "",
+        completed: false,
+        starred: false,
+        recurring: newRepeat === "none" ? "" : newRepeat,
+      })
+      if (result.error) {
+        setAddError(result.error.message || "Task add nahi hua. Kripya dobara koshish karein.")
+        return
+      }
+      setNewTitle("")
+      setNewDue("")
+      setNewRepeat("none")
+      setOpen(false)
+      await load()
+    } catch (err: any) {
+      setAddError(err.message || "Kuch galat hua. Kripya dobara koshish karein.")
+    }
   }
 
   return (
@@ -77,6 +87,11 @@ export default function DynamicWorkspacePage() {
           <DialogHeader>
             <DialogTitle>Add Task - {title}</DialogTitle>
           </DialogHeader>
+          {addError && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+              {addError}
+            </div>
+          )}
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label htmlFor="title">Title</Label>
